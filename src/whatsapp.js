@@ -1,6 +1,7 @@
 const {Client, LocalAuth, MessageMedia} = require('whatsapp-web.js');
 const qrcode = require('qrcode-terminal');
 const {config} = require('./config');
+const log = require('./logger');
 
 let isReady = false;
 
@@ -13,12 +14,12 @@ const client = new Client({
 });
 
 client.on('qr', (qr) => {
-    console.log('Scan this QR code with WhatsApp:');
+    log.info('Scan this QR code with WhatsApp:');
     qrcode.generate(qr, {small: true});
 });
 
 client.on('ready', async () => {
-    console.log('WhatsApp client is ready!');
+    log.info('WhatsApp client is ready');
     isReady = true;
 
     if (!config.whatsapp.chatId) {
@@ -27,29 +28,34 @@ client.on('ready', async () => {
 });
 
 client.on('authenticated', () => {
-    console.log('WhatsApp authenticated');
+    log.info('WhatsApp authenticated');
 });
 
 client.on('auth_failure', (msg) => {
-    console.error('WhatsApp authentication failed:', msg);
+    log.error(`WhatsApp authentication failed: ${msg}`);
+});
+
+client.on('disconnected', (reason) => {
+    log.warn(`WhatsApp disconnected: ${reason}`);
+    isReady = false;
 });
 
 async function listChats() {
-    console.log('\n--- Available WhatsApp Chats ---');
+    log.info('--- Available WhatsApp Chats ---');
     const chats = await client.getChats();
     chats.slice(0, 20).forEach(chat => {
-        console.log(`Name: ${chat.name} | ID: ${chat.id._serialized}`);
+        log.info(`Name: ${chat.name} | ID: ${chat.id._serialized}`);
     });
-    console.log('\nCopy the desired chat ID to your .env file as WHATSAPP_CHAT_ID\n');
+    log.info('Copy the desired chat ID to your .env file as WHATSAPP_CHAT_ID');
 }
 
 function canSend() {
     if (!isReady) {
-        console.log('WhatsApp not ready, message skipped');
+        log.warn('WhatsApp not ready, message skipped');
         return false;
     }
     if (!config.whatsapp.chatId) {
-        console.log('WHATSAPP_CHAT_ID not set, cannot forward message');
+        log.warn('WHATSAPP_CHAT_ID not set, cannot forward message');
         return false;
     }
     return true;
@@ -60,10 +66,10 @@ async function sendMessage(text) {
 
     try {
         await client.sendMessage(config.whatsapp.chatId, text);
-        console.log('Message forwarded to WhatsApp');
+        log.info('Message forwarded to WhatsApp');
         return true;
     } catch (error) {
-        console.error('Failed to forward message:', error.message);
+        log.error(`Failed to forward message: ${error.message}`);
         return false;
     }
 }
@@ -80,12 +86,12 @@ async function sendMedia(url, type, caption = '') {
         if (type === 'video' && url.includes('.gif')) options.sendVideoAsGif = true;
 
         await client.sendMessage(config.whatsapp.chatId, media, options);
-        console.log(`${type} forwarded to WhatsApp`);
+        log.info(`${type} forwarded to WhatsApp`);
         return true;
     } catch (error) {
-        console.error('Failed to forward media:', error.message);
+        log.error(`Failed to forward media: ${error.message}`);
         if (caption) {
-            console.log('Falling back to text-only message');
+            log.warn('Falling back to text-only message');
             return sendMessage(`${caption}\n\n[Media failed to load]`);
         }
         return false;
@@ -93,7 +99,7 @@ async function sendMedia(url, type, caption = '') {
 }
 
 async function initialize() {
-    console.log('Initializing WhatsApp client...');
+    log.info('Initializing WhatsApp client...');
     await client.initialize();
 }
 

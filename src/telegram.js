@@ -1,6 +1,7 @@
 const {Telegraf} = require('telegraf');
 const {config} = require('./config');
 const whatsapp = require('./whatsapp');
+const log = require('./logger');
 
 const bot = new Telegraf(config.telegram.botToken);
 
@@ -51,7 +52,7 @@ async function getMediaInfo(ctx, post) {
         const fileUrl = await ctx.telegram.getFileLink(fileId);
         return {url: fileUrl.href, type};
     } catch (error) {
-        console.error('Failed to get file link:', error.message);
+        log.error(`Failed to get file link: ${error.message}`);
         return null;
     }
 }
@@ -62,7 +63,7 @@ async function processPost(ctx, post, isEdited = false) {
     if (!shouldProcess(channelId)) return;
 
     if (isForwarded(post)) {
-        console.log('Skipping forwarded message');
+        log.debug('Skipping forwarded message');
         return;
     }
 
@@ -74,10 +75,10 @@ async function processPost(ctx, post, isEdited = false) {
     const media = await getMediaInfo(ctx, post);
 
     if (media) {
-        console.log(`New ${media.type} from ${channelName}`);
+        log.info(`New ${media.type} from ${channelName}`);
         await whatsapp.sendMedia(media.url, media.type, fullMessage);
     } else if (caption) {
-        console.log(`New message from ${channelName}: ${caption.substring(0, 50)}...`);
+        log.info(`New message from ${channelName}: ${caption.substring(0, 50)}...`);
         await whatsapp.sendMessage(fullMessage);
     }
 }
@@ -91,9 +92,9 @@ bot.on('edited_channel_post', async (ctx) => {
 });
 
 async function launch() {
-    console.log('Starting Telegram bot...');
+    log.info('Starting Telegram bot...');
     await bot.launch();
-    console.log('Telegram bot is running!');
+    log.info('Telegram bot is running');
 }
 
 function stop(signal) {
