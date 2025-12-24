@@ -8,12 +8,11 @@ const messageMap = new Map();
 
 const puppeteerConfig = {
     headless: true,
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    ...(process.env.PUPPETEER_EXECUTABLE_PATH && {
+        executablePath: process.env.PUPPETEER_EXECUTABLE_PATH
+    })
 };
-
-if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-    puppeteerConfig.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-}
 
 const authPath = process.env.DATA_DIR ? `${process.env.DATA_DIR}/wwebjs_auth` : undefined;
 
@@ -30,52 +29,42 @@ client.on('qr', (qr) => {
 client.on('ready', async () => {
     log.info('WhatsApp client is ready');
     isReady = true;
-
-    if (config.whatsapp.channelInvite && !config.whatsapp.chatId) {
-        log.info('Resolving channel from invite code...');
-        const channelId = await getChannelByInvite(config.whatsapp.channelInvite);
-        if (channelId) {
-            config.whatsapp.chatId = channelId;
-            log.info('Add this to your .env: WHATSAPP_CHAT_ID=' + channelId);
-        }
-    }
-
-    if (!config.whatsapp.chatId) {
-        await listChats();
-    }
+    await resolveChannelIfNeeded();
+    if (!config.whatsapp.chatId) await listChats();
 });
 
-client.on('authenticated', () => {
-    log.info('WhatsApp authenticated');
-});
-
-client.on('auth_failure', (msg) => {
-    log.error(`WhatsApp authentication failed: ${msg}`);
-});
-
+client.on('authenticated', () => log.info('WhatsApp authenticated'));
+client.on('auth_failure', (msg) => log.error(`WhatsApp authentication failed: ${msg}`));
 client.on('disconnected', (reason) => {
     log.warn(`WhatsApp disconnected: ${reason}`);
     isReady = false;
 });
+
+async function resolveChannelIfNeeded() {
+    if (!config.whatsapp.channelInvite || config.whatsapp.chatId) return;
+
+    log.info('Resolving channel from invite code...');
+    const channelId = await getChannelByInvite(config.whatsapp.channelInvite);
+    if (!channelId) return;
+
+    config.whatsapp.chatId = channelId;
+    log.info('Add this to your .env: WHATSAPP_CHAT_ID=' + channelId);
+}
 
 async function listChats() {
     const chats = await client.getChats();
     const groups = chats.filter(c => c.id._serialized.endsWith('@g.us'));
 
     log.info('--- WhatsApp Groups ---');
-    groups.slice(0, 10).forEach(chat => {
-        log.info(`${chat.name} | ${chat.id._serialized}`);
-    });
+    groups.slice(0, 10).forEach(c => log.info(`${c.name} | ${c.id._serialized}`));
 
     log.info('--- WhatsApp Channels ---');
     try {
         const channels = await client.getChannels();
-        if (!channels || channels.length === 0) {
-            log.info('No channels found.');
+        if (channels?.length) {
+            channels.forEach(c => log.info(`${c.name} | ${c.id._serialized}`));
         } else {
-            channels.forEach(channel => {
-                log.info(`${channel.name} | ${channel.id._serialized}`);
-            });
+            log.info('No channels found.');
         }
     } catch (e) {
         log.warn('Could not fetch channels: ' + e.message);
@@ -87,50 +76,42 @@ async function listChats() {
 async function getChannelByInvite(inviteCode) {
     try {
         const channel = await client.getChannelByInviteCode(inviteCode);
-        if (channel) {
-            log.info(`Channel found: ${channel.name} | ${channel.id._serialized}`);
-            return channel.id._serialized;
-        }
+        if (!channel) return null;
+        log.info(`Channel found: ${channel.name} | ${channel.id._serialized}`);
+        return channel.id._serialized;
     } catch (e) {
         log.error('Failed to get channel: ' + e.message);
+        return null;
     }
-    return null;
 }
 
 function canSend() {
-    if (!isReady) {
-        log.warn('WhatsApp not ready, message skipped');
-        return false;
-    }
-    if (!config.whatsapp.chatId) {
-        log.warn('WHATSAPP_CHAT_ID not set, cannot forward message');
-        return false;
-    }
+    if (!isReady) return log.warn('WhatsApp not ready, message skipped') || false;
+    if (!config.whatsapp.chatId) return log.warn('WHATSAPP_CHAT_ID not set') || false;
     return true;
 }
 
 async function getChat() {
     try {
         return await client.getChatById(config.whatsapp.chatId);
-    } catch (e) {
+    } catch {
         return null;
     }
+}
+
+async function send(content, options = {}) {
+    const chat = await getChat();
+    return chat
+        ? chat.sendMessage(content, options)
+        : client.sendMessage(config.whatsapp.chatId, content, options);
 }
 
 async function sendMessage(text, telegramMsgId = null) {
     if (!canSend()) return false;
 
     try {
-        const chat = await getChat();
-        let msg;
-
-        if (chat) msg = await chat.sendMessage(text);
-        else msg = await client.sendMessage(config.whatsapp.chatId, text);
-
-        if (telegramMsgId && msg) {
-            messageMap.set(telegramMsgId, msg);
-        }
-
+        const msg = await send(text);
+        if (telegramMsgId && msg) messageMap.set(telegramMsgId, msg);
         log.info('Message forwarded to WhatsApp');
         return true;
     } catch (error) {
@@ -141,6 +122,7 @@ async function sendMessage(text, telegramMsgId = null) {
 
 async function editMessage(text, telegramMsgId) {
     const msg = messageMap.get(telegramMsgId);
+
     if (!msg) {
         log.debug('No WhatsApp message found for edit, sending as new');
         return sendMessage(text, telegramMsgId);
@@ -165,21 +147,12 @@ async function sendPhoto(url, caption = '') {
         const base64 = Buffer.from(buffer).toString('base64');
         const media = new MessageMedia('image/jpeg', base64, 'image.jpg');
 
-        const options = caption ? {caption} : {};
-        const chat = await getChat();
-
-        if (chat) await chat.sendMessage(media, options);
-        else await client.sendMessage(config.whatsapp.chatId, media, options);
-
+        await send(media, caption ? {caption} : {});
         log.info('Photo forwarded to WhatsApp');
         return true;
     } catch (error) {
         log.error(`Failed to forward photo: ${error.message}`);
-        if (caption) {
-            log.warn('Falling back to text-only message');
-            return sendMessage(caption);
-        }
-        return false;
+        return caption ? sendMessage(caption) : false;
     }
 }
 

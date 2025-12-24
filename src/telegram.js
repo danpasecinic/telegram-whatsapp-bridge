@@ -5,14 +5,9 @@ const log = require('./logger');
 
 const bot = new Telegraf(config.telegram.botToken);
 
-function isForwarded(post) {
-    return post.forward_origin || post.forward_from || post.forward_from_chat;
-}
+const isForwarded = (post) => post.forward_origin || post.forward_from || post.forward_from_chat;
 
-function shouldProcess(channelId) {
-    if (!config.telegram.channelId) return true;
-    return channelId === config.telegram.channelId;
-}
+const shouldProcess = (channelId) => !config.telegram.channelId || channelId === config.telegram.channelId;
 
 async function getPhotoUrl(ctx, post) {
     if (!post.photo) return null;
@@ -29,36 +24,34 @@ async function getPhotoUrl(ctx, post) {
 
 async function processPost(ctx, post, isEdited = false) {
     const channelId = post.chat.id.toString();
-
     if (!shouldProcess(channelId)) return;
-
-    if (isForwarded(post)) {
-        log.debug('Skipping forwarded message');
-        return;
-    }
+    if (isForwarded(post)) return log.debug('Skipping forwarded message');
 
     const channelName = post.chat.title || 'Unknown Channel';
     const message = post.text || post.caption || '';
+    const msgId = post.message_id;
     const photoUrl = await getPhotoUrl(ctx, post);
 
     if (photoUrl) {
         log.info(`New photo from ${channelName}`);
-        await whatsapp.sendPhoto(photoUrl, message);
-    } else if (message) {
-        log.info(`New message from ${channelName}: ${message.substring(0, 50)}...`);
-        await whatsapp.sendMessage(message);
-    } else {
-        log.debug(`Skipping media-only post from ${channelName}`);
+        return whatsapp.sendPhoto(photoUrl, message);
     }
+
+    if (!message) {
+        return log.debug(`Skipping media-only post from ${channelName}`);
+    }
+
+    if (isEdited) {
+        log.info(`Edited message from ${channelName}`);
+        return whatsapp.editMessage(message, msgId);
+    }
+
+    log.info(`New message from ${channelName}: ${message.substring(0, 50)}...`);
+    return whatsapp.sendMessage(message, msgId);
 }
 
-bot.on('channel_post', async (ctx) => {
-    await processPost(ctx, ctx.channelPost, false);
-});
-
-bot.on('edited_channel_post', async (ctx) => {
-    await processPost(ctx, ctx.editedChannelPost, true);
-});
+bot.on('channel_post', (ctx) => processPost(ctx, ctx.channelPost, false));
+bot.on('edited_channel_post', (ctx) => processPost(ctx, ctx.editedChannelPost, true));
 
 async function launch() {
     log.info('Starting Telegram bot...');
