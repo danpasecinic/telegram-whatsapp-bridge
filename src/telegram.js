@@ -14,45 +14,15 @@ function shouldProcess(channelId) {
     return channelId === config.telegram.channelId;
 }
 
-function formatHeader(channelName, isEdited = false) {
-    const editedTag = isEdited ? ' (edited)' : '';
-    return `*${channelName}*${editedTag}`;
-}
-
-async function getMediaInfo(ctx, post) {
-    let fileId = null;
-    let type = null;
-
-    if (post.photo) {
-        fileId = post.photo[post.photo.length - 1].file_id;
-        type = 'photo';
-    } else if (post.video) {
-        fileId = post.video.file_id;
-        type = 'video';
-    } else if (post.document) {
-        fileId = post.document.file_id;
-        type = 'document';
-    } else if (post.audio) {
-        fileId = post.audio.file_id;
-        type = 'audio';
-    } else if (post.voice) {
-        fileId = post.voice.file_id;
-        type = 'voice';
-    } else if (post.video_note) {
-        fileId = post.video_note.file_id;
-        type = 'video';
-    } else if (post.animation) {
-        fileId = post.animation.file_id;
-        type = 'video';
-    }
-
-    if (!fileId) return null;
+async function getPhotoUrl(ctx, post) {
+    if (!post.photo) return null;
 
     try {
+        const fileId = post.photo[post.photo.length - 1].file_id;
         const fileUrl = await ctx.telegram.getFileLink(fileId);
-        return {url: fileUrl.href, type};
+        return fileUrl.href;
     } catch (error) {
-        log.error(`Failed to get file link: ${error.message}`);
+        log.error(`Failed to get photo link: ${error.message}`);
         return null;
     }
 }
@@ -68,18 +38,17 @@ async function processPost(ctx, post, isEdited = false) {
     }
 
     const channelName = post.chat.title || 'Unknown Channel';
-    const header = formatHeader(channelName, isEdited);
-    const caption = post.text || post.caption || '';
-    const fullMessage = caption ? `${header}\n\n${caption}` : header;
+    const message = post.text || post.caption || '';
+    const photoUrl = await getPhotoUrl(ctx, post);
 
-    const media = await getMediaInfo(ctx, post);
-
-    if (media) {
-        log.info(`New ${media.type} from ${channelName}`);
-        await whatsapp.sendMedia(media.url, media.type, fullMessage);
-    } else if (caption) {
-        log.info(`New message from ${channelName}: ${caption.substring(0, 50)}...`);
-        await whatsapp.sendMessage(fullMessage);
+    if (photoUrl) {
+        log.info(`New photo from ${channelName}`);
+        await whatsapp.sendPhoto(photoUrl, message);
+    } else if (message) {
+        log.info(`New message from ${channelName}: ${message.substring(0, 50)}...`);
+        await whatsapp.sendMessage(message);
+    } else {
+        log.debug(`Skipping media-only post from ${channelName}`);
     }
 }
 

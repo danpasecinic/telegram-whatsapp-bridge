@@ -6,7 +6,8 @@ const config = {
         channelId: process.env.TELEGRAM_CHANNEL_ID
     },
     whatsapp: {
-        chatId: process.env.WHATSAPP_CHAT_ID
+        chatId: process.env.WHATSAPP_CHAT_ID,
+        channelInvite: process.env.WHATSAPP_CHANNEL_INVITE
     }
 };
 

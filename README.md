@@ -53,6 +53,7 @@ Session and logs persist in `./data/` directory.
 | `TELEGRAM_CHANNEL_ID` | Channel ID to monitor (optional, monitors all if empty)                     |
 | `WHATSAPP_CHAT_ID`    | Target WhatsApp chat (`123@g.us` for groups, `123@newsletter` for channels) |
 | `LOG_DIR`             | Log directory (default: `./logs`)                                           |
+| `DATA_DIR`            | Data directory for WhatsApp session (default: `.`)                          |
 | `DEBUG`               | Enable debug logging (set to `1`)                                           |
 
 ## Notes

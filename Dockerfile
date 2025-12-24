@@ -31,8 +31,4 @@ RUN npm ci --only=production
 
 COPY src ./src
 
-RUN mkdir -p /app/logs /app/.wwebjs_auth
-
-VOLUME ["/app/.wwebjs_auth", "/app/logs"]
-
 CMD ["node", "src/index.js"]
