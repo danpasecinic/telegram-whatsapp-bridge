@@ -1,0 +1,12 @@
+services:
+  bridge:
+    build: .
+    container_name: tg-wa-bridge
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - ./data/wwebjs_auth:/app/.wwebjs_auth
+      - ./data/logs:/app/logs
+    environment:
+      - LOG_DIR=/app/logs

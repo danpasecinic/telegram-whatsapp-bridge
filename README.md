@@ -30,6 +30,21 @@ audio. Automatically skips reposts/forwards from other channels.
     - Copy desired chat ID from console to `.env`
     - Restart
 
+## Docker
+
+```bash
+# Build and run
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# First run - get QR code
+docker compose logs -f bridge
+```
+
+Session and logs persist in `./data/` directory.
+
 ## Environment Variables
 
 | Variable              | Description                                                                 |
@@ -37,6 +52,8 @@ audio. Automatically skips reposts/forwards from other channels.
 | `TELEGRAM_BOT_TOKEN`  | Bot token from @BotFather                                                   |
 | `TELEGRAM_CHANNEL_ID` | Channel ID to monitor (optional, monitors all if empty)                     |
 | `WHATSAPP_CHAT_ID`    | Target WhatsApp chat (`123@g.us` for groups, `123@newsletter` for channels) |
+| `LOG_DIR`             | Log directory (default: `./logs`)                                           |
+| `DEBUG`               | Enable debug logging (set to `1`)                                           |
 
 ## Notes
 
