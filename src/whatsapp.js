@@ -5,6 +5,7 @@ const log = require('./logger');
 
 let isReady = false;
 const messageMap = new Map();
+const messageMetaMap = new Map();
 
 const puppeteerConfig = {
     headless: true,
@@ -111,13 +112,21 @@ async function sendMessage(text, telegramMsgId = null) {
 
     try {
         const msg = await send(text);
-        if (telegramMsgId && msg) messageMap.set(telegramMsgId, msg);
+        if (telegramMsgId && msg) {
+            messageMap.set(telegramMsgId, msg);
+            messageMetaMap.set(telegramMsgId, {hasMedia: false});
+        }
         log.info('Message forwarded to WhatsApp');
         return true;
     } catch (error) {
         log.error(`Failed to forward message: ${error.message}`);
         return false;
     }
+}
+
+function hadMedia(telegramMsgId) {
+    const meta = messageMetaMap.get(telegramMsgId);
+    return meta?.hasMedia ?? false;
 }
 
 async function editMessage(text, telegramMsgId) {
@@ -138,7 +147,7 @@ async function editMessage(text, telegramMsgId) {
     }
 }
 
-async function sendPhoto(url, caption = '') {
+async function sendPhoto(url, caption = '', telegramMsgId = null) {
     if (!canSend()) return false;
 
     try {
@@ -147,12 +156,16 @@ async function sendPhoto(url, caption = '') {
         const base64 = Buffer.from(buffer).toString('base64');
         const media = new MessageMedia('image/jpeg', base64, 'image.jpg');
 
-        await send(media, caption ? {caption} : {});
+        const msg = await send(media, caption ? {caption} : {});
+        if (telegramMsgId && msg) {
+            messageMap.set(telegramMsgId, msg);
+            messageMetaMap.set(telegramMsgId, {hasMedia: true});
+        }
         log.info('Photo forwarded to WhatsApp');
         return true;
     } catch (error) {
         log.error(`Failed to forward photo: ${error.message}`);
-        return caption ? sendMessage(caption) : false;
+        return caption ? sendMessage(caption, telegramMsgId) : false;
     }
 }
 
@@ -165,4 +178,4 @@ function destroy() {
     client.destroy();
 }
 
-module.exports = {initialize, sendMessage, editMessage, sendPhoto, destroy};
+module.exports = {initialize, sendMessage, editMessage, sendPhoto, hadMedia, destroy};

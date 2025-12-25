@@ -40,20 +40,26 @@ async function processPost(ctx, post, isEdited = false) {
     const channelName = post.chat.title || 'Unknown Channel';
     const message = post.text || post.caption || '';
     const msgId = post.message_id;
-    const photoUrl = await getPhotoUrl(ctx, post);
 
+    if (isEdited) {
+        if (!message) {
+            return log.debug(`Skipping media-only edit from ${channelName}`);
+        }
+        if (post.photo && !whatsapp.hadMedia(msgId)) {
+            return log.debug(`Skipping edit with added media from ${channelName} (not supported)`);
+        }
+        log.info(`Edited message from ${channelName}`);
+        return whatsapp.editMessage(message, msgId);
+    }
+
+    const photoUrl = await getPhotoUrl(ctx, post);
     if (photoUrl) {
         log.info(`New photo from ${channelName}`);
-        return whatsapp.sendPhoto(photoUrl, message);
+        return whatsapp.sendPhoto(photoUrl, message, msgId);
     }
 
     if (!message) {
         return log.debug(`Skipping media-only post from ${channelName}`);
-    }
-
-    if (isEdited) {
-        log.info(`Edited message from ${channelName}`);
-        return whatsapp.editMessage(message, msgId);
     }
 
     log.info(`New message from ${channelName}: ${message.substring(0, 50)}...`);
