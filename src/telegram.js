@@ -5,6 +5,8 @@ const log = require('./logger');
 
 const bot = new Telegraf(config.telegram.botToken);
 
+const processedMediaGroups = new Set();
+
 const isForwarded = (post) => post.forward_origin || post.forward_from || post.forward_from_chat;
 
 const shouldProcess = (channelId) => !config.telegram.channelId || channelId === config.telegram.channelId;
@@ -26,6 +28,14 @@ async function processPost(ctx, post, isEdited = false) {
     const channelId = post.chat.id.toString();
     if (!shouldProcess(channelId)) return;
     if (isForwarded(post)) return log.debug('Skipping forwarded message');
+
+    if (post.media_group_id) {
+        if (processedMediaGroups.has(post.media_group_id)) {
+            return log.debug('Skipping additional media from group');
+        }
+        processedMediaGroups.add(post.media_group_id);
+        setTimeout(() => processedMediaGroups.delete(post.media_group_id), 60000);
+    }
 
     const channelName = post.chat.title || 'Unknown Channel';
     const message = post.text || post.caption || '';
