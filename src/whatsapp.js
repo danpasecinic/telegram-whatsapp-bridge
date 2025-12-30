@@ -147,26 +147,43 @@ async function editMessage(text, telegramMsgId) {
     }
 }
 
-async function sendPhoto(url, caption = '', telegramMsgId = null) {
+async function sendMedia(url, mimeType, filename, caption = '', telegramMsgId = null) {
     if (!canSend()) return false;
 
     try {
         const response = await fetch(url);
         const buffer = await response.arrayBuffer();
         const base64 = Buffer.from(buffer).toString('base64');
-        const media = new MessageMedia('image/jpeg', base64, 'image.jpg');
+        const media = new MessageMedia(mimeType, base64, filename);
 
         const msg = await send(media, caption ? {caption} : {});
         if (telegramMsgId && msg) {
             messageMap.set(telegramMsgId, msg);
             messageMetaMap.set(telegramMsgId, {hasMedia: true});
         }
+        return msg;
+    } catch (error) {
+        log.error(`Failed to forward media: ${error.message}`);
+        return null;
+    }
+}
+
+async function sendPhoto(url, caption = '', telegramMsgId = null) {
+    const result = await sendMedia(url, 'image/jpeg', 'image.jpg', caption, telegramMsgId);
+    if (result) {
         log.info('Photo forwarded to WhatsApp');
         return true;
-    } catch (error) {
-        log.error(`Failed to forward photo: ${error.message}`);
-        return caption ? sendMessage(caption, telegramMsgId) : false;
     }
+    return caption ? sendMessage(caption, telegramMsgId) : false;
+}
+
+async function sendVideo(url, caption = '', telegramMsgId = null) {
+    const result = await sendMedia(url, 'video/mp4', 'video.mp4', caption, telegramMsgId);
+    if (result) {
+        log.info('Video forwarded to WhatsApp');
+        return true;
+    }
+    return caption ? sendMessage(caption, telegramMsgId) : false;
 }
 
 async function initialize() {
@@ -178,4 +195,4 @@ function destroy() {
     client.destroy();
 }
 
-module.exports = {initialize, sendMessage, editMessage, sendPhoto, hadMedia, destroy};
+module.exports = {initialize, sendMessage, editMessage, sendPhoto, sendVideo, hadMedia, destroy};

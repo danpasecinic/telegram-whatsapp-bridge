@@ -11,17 +11,25 @@ const isForwarded = (post) => post.forward_origin || post.forward_from || post.f
 
 const shouldProcess = (channelId) => !config.telegram.channelId || channelId === config.telegram.channelId;
 
-async function getPhotoUrl(ctx, post) {
-    if (!post.photo) return null;
-
+async function getFileUrl(ctx, fileId, type) {
     try {
-        const fileId = post.photo[post.photo.length - 1].file_id;
         const fileUrl = await ctx.telegram.getFileLink(fileId);
         return fileUrl.href;
     } catch (error) {
-        log.error(`Failed to get photo link: ${error.message}`);
+        log.error(`Failed to get ${type} link: ${error.message}`);
         return null;
     }
+}
+
+async function getPhotoUrl(ctx, post) {
+    if (!post.photo) return null;
+    const fileId = post.photo[post.photo.length - 1].file_id;
+    return getFileUrl(ctx, fileId, 'photo');
+}
+
+async function getVideoUrl(ctx, post) {
+    if (!post.video) return null;
+    return getFileUrl(ctx, post.video.file_id, 'video');
 }
 
 async function processPost(ctx, post, isEdited = false) {
@@ -45,7 +53,7 @@ async function processPost(ctx, post, isEdited = false) {
         if (!message) {
             return log.debug(`Skipping media-only edit from ${channelName}`);
         }
-        if (post.photo && !whatsapp.hadMedia(msgId)) {
+        if ((post.photo || post.video) && !whatsapp.hadMedia(msgId)) {
             return log.debug(`Skipping edit with added media from ${channelName} (not supported)`);
         }
         log.info(`Edited message from ${channelName}`);
@@ -56,6 +64,12 @@ async function processPost(ctx, post, isEdited = false) {
     if (photoUrl) {
         log.info(`New photo from ${channelName}`);
         return whatsapp.sendPhoto(photoUrl, message, msgId);
+    }
+
+    const videoUrl = await getVideoUrl(ctx, post);
+    if (videoUrl) {
+        log.info(`New video from ${channelName}`);
+        return whatsapp.sendVideo(videoUrl, message, msgId);
     }
 
     if (!message) {
