@@ -19,7 +19,11 @@ const authPath = process.env.DATA_DIR ? `${process.env.DATA_DIR}/wwebjs_auth` : 
 
 const client = new Client({
     authStrategy: new LocalAuth({dataPath: authPath}),
-    puppeteer: puppeteerConfig
+    puppeteer: puppeteerConfig,
+    webVersionCache: {
+        type: 'remote',
+        remotePath: 'https://raw.githubusercontent.com/wppconnect-team/wa-version/refs/heads/main/html/2.3000.1031490220-alpha.html',
+    },
 });
 
 client.on('qr', (qr) => {
