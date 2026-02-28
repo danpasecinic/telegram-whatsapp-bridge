@@ -18,7 +18,7 @@ jobs:
             cd ~/telegram-whatsapp-bridge
             git pull origin main
             docker-compose down
-            rm -rf data/wwebjs_auth
+            sudo rm -rf data/wwebjs_auth
             docker build -t tg-wa-bridge .
             docker-compose up -d
             docker image prune -f
