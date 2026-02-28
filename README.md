@@ -45,6 +45,17 @@ docker compose logs -f bridge
 
 Session and logs persist in `./data/` directory.
 
+## CI/CD
+
+Pushing to `main` triggers automatic deployment to EC2 via GitHub Actions.
+
+**Required GitHub Secrets:**
+
+| Secret       | Description                          |
+|--------------|--------------------------------------|
+| `EC2_HOST`   | EC2 instance IP or hostname          |
+| `EC2_SSH_KEY` | Private SSH key for `ec2-user` access |
+
 ## Environment Variables
 
 | Variable              | Description                                                                 |

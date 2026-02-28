@@ -23,16 +23,6 @@ const patches = [
         new: `const shouldUseMediaCache = window.Store.MediaDataUtils?.shouldUseMediaCache?.(
             window.Store.MediaTypes.castToV4(mediaObject.type)
         ) ?? false;`
-    },
-    {
-        name: 'OpaqueData mimetype fix for channels',
-        old: 'await window.Store.OpaqueData.createFromData(file, file.type)',
-        new: 'await window.Store.OpaqueData.createFromData(file, mediaInfo.mimetype)'
-    },
-    {
-        name: 'calculateToken function reference fix',
-        old: 'calculateToken: window.Store.SendChannelMessage.getRandomFilehash()',
-        new: 'calculateToken: window.Store.SendChannelMessage.getRandomFilehash'
     }
 ];
 
