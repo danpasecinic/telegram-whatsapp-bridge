@@ -17,5 +17,6 @@ jobs:
           script: |
             cd ~/telegram-whatsapp-bridge
             git pull origin main
-            docker-compose up -d --build --force-recreate
+            docker build -t tg-wa-bridge .
+            docker-compose up -d --force-recreate
             docker image prune -f
