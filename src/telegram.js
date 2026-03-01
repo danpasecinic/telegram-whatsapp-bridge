@@ -1,6 +1,6 @@
 const { Telegraf } = require("telegraf");
 const { config } = require("./config");
-const whatsapp = require("./whatsapp").default;
+const whatsapp = require("./whatsapp");
 const log = require("./logger");
 
 const bot = new Telegraf(config.telegram.botToken);
