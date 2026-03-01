@@ -1,6 +1,6 @@
 const { validate } = require("./config");
 const telegram = require("./telegram");
-const whatsapp = require("./whatsapp").default;
+const whatsapp = require("./whatsapp");
 const log = require("./logger");
 
 validate();
