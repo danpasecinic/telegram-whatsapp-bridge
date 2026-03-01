@@ -20,6 +20,6 @@ jobs:
             git reset --hard origin/main
             docker-compose down
             sudo rm -rf data/wwebjs_auth .wwebjs_cache
-            docker build -t tg-wa-bridge .
-            docker-compose up -d
+            docker build --no-cache -t tg-wa-bridge .
+            docker-compose up -d --no-build
             docker image prune -f
