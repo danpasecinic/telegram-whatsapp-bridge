@@ -1,49 +1,59 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { config } from "./config.js";
 
-const LOG_DIR = process.env.LOG_DIR || "./logs";
-const LOG_FILE = path.join(LOG_DIR, "bridge.log");
+const LOG_FILE = path.join(config.logDir, "bridge.log");
 
-if (!fs.existsSync(LOG_DIR)) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
+if (!fs.existsSync(config.logDir)) {
+  fs.mkdirSync(config.logDir, { recursive: true });
 }
 
 function timestamp() {
   return new Date().toISOString();
 }
 
+/**
+ * @param {string} level
+ * @param {string} message
+ * @returns {string}
+ */
 function formatMessage(level, message) {
   return `[${timestamp()}] [${level}] ${message}`;
 }
 
+/** @param {string} formatted */
 function writeToFile(formatted) {
   fs.appendFileSync(LOG_FILE, formatted + "\n");
 }
 
+/** @param {string} message */
 function info(message) {
   const formatted = formatMessage("INFO", message);
   console.log(formatted);
   writeToFile(formatted);
 }
 
+/** @param {string} message */
 function error(message) {
   const formatted = formatMessage("ERROR", message);
   console.error(formatted);
   writeToFile(formatted);
 }
 
+/** @param {string} message */
 function warn(message) {
   const formatted = formatMessage("WARN", message);
   console.warn(formatted);
   writeToFile(formatted);
 }
 
+/** @param {string} message */
 function debug(message) {
-  if (process.env.DEBUG) {
+  if (config.debug) {
     const formatted = formatMessage("DEBUG", message);
     console.log(formatted);
     writeToFile(formatted);
   }
 }
 
-module.exports = { info, error, warn, debug };
+export default { info, error, warn, debug };

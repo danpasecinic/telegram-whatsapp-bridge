@@ -1,9 +1,7 @@
-const { validate } = require("./config");
-const telegram = require("./telegram");
-const whatsapp = require("./whatsapp");
-const log = require("./logger");
-
-validate();
+import "./config.js";
+import * as telegram from "./telegram/index.js";
+import * as whatsapp from "./whatsapp/index.js";
+import log from "./logger.js";
 
 async function start() {
   log.info("Starting Telegram-WhatsApp Bridge...");
@@ -12,6 +10,7 @@ async function start() {
   log.info("Bridge is running! Listening for Telegram channel messages...");
 }
 
+/** @param {string} signal */
 function shutdown(signal) {
   log.info(`Received ${signal}, shutting down...`);
   telegram.stop(signal);

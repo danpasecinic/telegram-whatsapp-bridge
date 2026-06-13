@@ -1,12 +1,17 @@
 {
   "name": "telegram-whatsapp-bridge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Forward messages from Telegram channel to WhatsApp",
+  "type": "module",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "postinstall": "node scripts/patch-whatsapp.js"
+    "test": "node --test",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "postinstall": "node scripts/patch-whatsapp.cjs"
   },
   "keywords": [
     "telegram",
@@ -20,6 +25,14 @@
     "dotenv": "^17.2.3",
     "qrcode-terminal": "^0.12.0",
     "telegraf": "^4.16.3",
-    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main"
+    "whatsapp-web.js": "github:pedroslopez/whatsapp-web.js#main",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.5.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.4"
   }
 }
