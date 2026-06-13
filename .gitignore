@@ -1,5 +1,6 @@
 node_modules/
 .env
+scripts/.env.deploy
 .wwebjs_auth/
 .wwebjs_cache/
 .idea/
