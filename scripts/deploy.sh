@@ -23,9 +23,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-# --- load optional config file -------------------------------------------------
 if [[ -f scripts/.env.deploy ]]; then
-  # shellcheck disable=SC1091
   set -a && source scripts/.env.deploy && set +a
 fi
 
@@ -44,7 +42,6 @@ done
 
 SSH_TARGET="${EC2_USER}@${EC2_HOST}"
 
-# SSH refuses keys that are readable by other users; fix it up front.
 if [[ -n "$SSH_KEY" && -f "$SSH_KEY" ]]; then
   perms="$(stat -f '%Lp' "$SSH_KEY" 2>/dev/null || stat -c '%a' "$SSH_KEY" 2>/dev/null || echo '')"
   if [[ "$perms" != "600" && "$perms" != "400" ]]; then
@@ -53,13 +50,18 @@ if [[ -n "$SSH_KEY" && -f "$SSH_KEY" ]]; then
   fi
 fi
 
-# Build ssh options as an array so paths with spaces survive.
 SSH_OPTS=(-o StrictHostKeyChecking=accept-new)
 [[ -n "$SSH_KEY" ]] && SSH_OPTS+=(-i "$SSH_KEY")
 
-# rsync wants the remote shell as one -e string; quote each option safely.
-RSH="ssh"
-for opt in "${SSH_OPTS[@]}"; do RSH+=" $(printf '%q' "$opt")"; done
+RSH_WRAPPER="$(mktemp "${TMPDIR:-/tmp}/twb-rsh.XXXXXX")"
+trap 'rm -f "$RSH_WRAPPER"' EXIT
+{
+  echo '#!/usr/bin/env bash'
+  printf 'exec ssh'
+  for opt in "${SSH_OPTS[@]}"; do printf ' %q' "$opt"; done
+  printf ' "$@"\n'
+} >"$RSH_WRAPPER"
+chmod +x "$RSH_WRAPPER"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo '(no-git)')"
 COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo 'n/a')"
@@ -91,19 +93,36 @@ rsync -az --delete \
   --exclude '.wwebjs_auth' \
   --exclude '.wwebjs_cache' \
   --exclude '.idea' \
-  -e "$RSH" \
+  -e "$RSH_WRAPPER" \
   ./ "${SSH_TARGET}:${REMOTE_DIR}/"
 
 echo ">> Rebuilding and restarting on the host ..."
-# shellcheck disable=SC2087
-ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -s <<REMOTE
+ssh "${SSH_OPTS[@]}" "$SSH_TARGET" bash -l -s <<REMOTE
 set -euo pipefail
-cd "${REMOTE_DIR}"
+export PATH="/usr/local/bin:/usr/bin:/bin:/usr/local/sbin:/usr/sbin:/sbin:\$PATH"
 
+# Resolve the docker tooling BEFORE any destructive step, so a misconfigured
+# host fails fast instead of wiping the session and leaving nothing rebuilt.
+if ! command -v docker >/dev/null 2>&1; then
+  echo "error: 'docker' not found on the host PATH (\$PATH)" >&2
+  exit 127
+fi
 if docker compose version >/dev/null 2>&1; then
   DC="docker compose"
-else
+elif command -v docker-compose >/dev/null 2>&1; then
   DC="docker-compose"
+else
+  echo "error: neither 'docker compose' nor 'docker-compose' is available" >&2
+  exit 127
+fi
+
+cd "${REMOTE_DIR}"
+
+if [[ ! -f .env ]]; then
+  echo "error: .env not found in ${REMOTE_DIR} on the host." >&2
+  echo "       Create it first, e.g.:" >&2
+  echo "       scp <key> .env ${SSH_TARGET}:${REMOTE_DIR}/.env" >&2
+  exit 1
 fi
 
 \$DC down || true
