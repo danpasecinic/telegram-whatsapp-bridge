@@ -4,6 +4,7 @@ import * as z from "zod";
 const envSchema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().min(1, "TELEGRAM_BOT_TOKEN is required"),
   TELEGRAM_CHANNEL_ID: z.string().optional(),
+  TELEGRAM_ALERT_CHAT_ID: z.string().optional(),
   WHATSAPP_CHAT_ID: z.string().optional(),
   WHATSAPP_CHANNEL_INVITE: z.string().optional(),
   LOG_DIR: z.string().min(1).default("./logs"),
@@ -14,7 +15,7 @@ const envSchema = z.object({
 
 /**
  * @typedef {object} Config
- * @property {{ botToken: string, channelId?: string }} telegram
+ * @property {{ botToken: string, channelId?: string, alertChatId?: string }} telegram
  * @property {{ chatId?: string, channelInvite?: string }} whatsapp
  * @property {string} logDir
  * @property {string|undefined} dataDir
@@ -41,6 +42,7 @@ function loadConfig() {
     telegram: {
       botToken: env.TELEGRAM_BOT_TOKEN,
       channelId: env.TELEGRAM_CHANNEL_ID || undefined,
+      alertChatId: env.TELEGRAM_ALERT_CHAT_ID || undefined,
     },
     whatsapp: {
       chatId: env.WHATSAPP_CHAT_ID || undefined,
