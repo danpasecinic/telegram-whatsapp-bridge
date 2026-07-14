@@ -15,11 +15,20 @@ jobs:
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             cd ~/telegram-whatsapp-bridge
             git fetch origin main
             git reset --hard origin/main
-            docker-compose down
+            if docker compose version >/dev/null 2>&1; then
+              DC="docker compose"
+            elif command -v docker-compose >/dev/null 2>&1; then
+              DC="docker-compose"
+            else
+              echo "error: neither 'docker compose' nor 'docker-compose' is available" >&2
+              exit 127
+            fi
+            $DC down
             sudo rm -rf data/wwebjs_auth .wwebjs_cache
             docker build --no-cache -t tg-wa-bridge .
-            docker-compose up -d --no-build
+            $DC up -d --no-build
             docker image prune -f
