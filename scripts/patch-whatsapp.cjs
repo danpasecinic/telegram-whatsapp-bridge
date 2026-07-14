@@ -16,13 +16,27 @@ let patchCount = 0;
 
 const patches = [
   {
-    name: "MediaDataUtils optional chaining",
-    old: `const shouldUseMediaCache = window.Store.MediaDataUtils.shouldUseMediaCache(
-            window.Store.MediaTypes.castToV4(mediaObject.type)
-        );`,
-    new: `const shouldUseMediaCache = window.Store.MediaDataUtils?.shouldUseMediaCache?.(
-            window.Store.MediaTypes.castToV4(mediaObject.type)
-        ) ?? false;`,
+    name: "newsletter media metadata (msg.avParams removed by WA Web)",
+    old: "mediaMetadata: msg.avParams(),",
+    new: "mediaMetadata: typeof msg.avParams === 'function' ? msg.avParams() : window.require('WAWebMediaMetadata').mediaMetadata(msg),",
+  },
+  {
+    name: "media cache lookup guard",
+    old: `        const shouldUseMediaCache = window
+            .require('WAWebMediaDataUtils')
+            .shouldUseMediaCache(
+                window.require('WAWebMmsMediaTypes').castToV4(mediaObject.type),
+            );`,
+    new: `        let shouldUseMediaCache = false;
+        try {
+            shouldUseMediaCache = window
+                .require('WAWebMediaDataUtils')
+                .shouldUseMediaCache(
+                    window.require('WAWebMmsMediaTypes').castToV4(mediaObject.type),
+                );
+        } catch {
+            shouldUseMediaCache = false;
+        }`,
   },
 ];
 
