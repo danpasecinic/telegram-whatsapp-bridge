@@ -32,3 +32,4 @@ jobs:
             docker build --no-cache -t tg-wa-bridge .
             $DC up -d --no-build
             docker image prune -f
+            docker builder prune -af
