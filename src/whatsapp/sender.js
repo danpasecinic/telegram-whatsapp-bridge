@@ -4,7 +4,7 @@ import { client, isReady } from "./client.js";
 const { MessageMedia } = whatsappWeb;
 import { config } from "../config.js";
 import log from "../logger.js";
-import { remember, getMessage } from "./message-store.js";
+import { remember, getMessage, hadMedia } from "./message-store.js";
 
 /** @returns {boolean} */
 function canSend() {
@@ -67,11 +67,17 @@ export async function editMessage(text, telegramMsgId) {
   }
 
   try {
-    await msg.edit(text);
+    // msg.edit() resolves null when WhatsApp rejects the edit
+    const edited = await msg.edit(text);
+    if (!edited) throw new Error("edit rejected");
     log.info("Message edited on WhatsApp");
     return true;
   } catch (error) {
     log.error(`Failed to edit message: ${error.message}`);
+    if (hadMedia(telegramMsgId)) {
+      log.warn("Keeping original caption to avoid duplicate message");
+      return false;
+    }
     return sendMessage(text, telegramMsgId);
   }
 }
