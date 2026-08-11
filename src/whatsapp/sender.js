@@ -4,7 +4,7 @@ import { client, isReady } from "./client.js";
 const { MessageMedia } = whatsappWeb;
 import { config } from "../config.js";
 import log from "../logger.js";
-import { remember, getMessage, hadMedia } from "./message-store.js";
+import { remember, getMessage } from "./message-store.js";
 
 /** @returns {boolean} */
 function canSend() {
@@ -62,8 +62,8 @@ export async function editMessage(text, telegramMsgId) {
   const msg = getMessage(telegramMsgId);
 
   if (!msg) {
-    log.debug("No WhatsApp message found for edit, sending as new");
-    return sendMessage(text, telegramMsgId);
+    log.warn("No WhatsApp message found for edit, leaving the channel as is");
+    return false;
   }
 
   try {
@@ -73,12 +73,8 @@ export async function editMessage(text, telegramMsgId) {
     log.info("Message edited on WhatsApp");
     return true;
   } catch (error) {
-    log.error(`Failed to edit message: ${error.message}`);
-    if (hadMedia(telegramMsgId)) {
-      log.warn("Keeping original caption to avoid duplicate message");
-      return false;
-    }
-    return sendMessage(text, telegramMsgId);
+    log.warn(`Failed to edit message, keeping the original: ${error.message}`);
+    return false;
   }
 }
 
