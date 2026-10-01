@@ -33,11 +33,20 @@ function info(message) {
   writeToFile(formatted);
 }
 
+/** @type {((message: string) => void) | null} */
+let errorListener = null;
+
+/** @param {(message: string) => void} listener */
+function onError(listener) {
+  errorListener = listener;
+}
+
 /** @param {string} message */
 function error(message) {
   const formatted = formatMessage("ERROR", message);
   console.error(formatted);
   writeToFile(formatted);
+  errorListener?.(message);
 }
 
 /** @param {string} message */
@@ -56,4 +65,4 @@ function debug(message) {
   }
 }
 
-export default { info, error, warn, debug };
+export default { info, error, warn, debug, onError };

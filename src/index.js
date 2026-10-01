@@ -1,7 +1,10 @@
 import "./config.js";
 import * as telegram from "./telegram/index.js";
 import * as whatsapp from "./whatsapp/index.js";
+import { alertOnErrors, flushAlerts } from "./telegram/alert.js";
 import log from "./logger.js";
+
+alertOnErrors();
 
 async function start() {
   log.info("Starting Telegram-WhatsApp Bridge...");
@@ -20,8 +23,18 @@ function shutdown(signal) {
 
 process.once("SIGINT", () => shutdown("SIGINT"));
 process.once("SIGTERM", () => shutdown("SIGTERM"));
-
-start().catch((err) => {
-  log.error(`Failed to start bridge: ${err.message}`);
+/** @param {string} message */
+async function crash(message) {
+  log.error(message);
+  await flushAlerts();
   process.exit(1);
-});
+}
+
+process.on("unhandledRejection", (reason) =>
+  crash(`Unhandled rejection: ${reason?.stack ?? reason}`),
+);
+process.on("uncaughtException", (err) =>
+  crash(`Uncaught exception: ${err.stack ?? err.message}`),
+);
+
+start().catch((err) => crash(`Failed to start bridge: ${err.message}`));
