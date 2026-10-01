@@ -44,7 +44,6 @@ client.on("ready", () => {
 client.on("authenticated", () => log.info("WhatsApp authenticated"));
 client.on("auth_failure", (msg) => {
   log.error(`WhatsApp authentication failed: ${msg}`);
-  sendAlert(`WhatsApp authentication failed: ${msg}`);
 });
 client.on("disconnected", (reason) => {
   log.warn(`WhatsApp disconnected: ${reason}`);
